@@ -24,7 +24,7 @@
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5}
-.wrap{max-width:980px;margin:0 auto;padding:24px 16px 80px}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 16px 80px}
 header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:24px;line-height:1.2;margin:0 0 4px}
 .sub{color:var(--muted);margin:0;max-width:640px}
@@ -51,6 +51,8 @@ h3{font-size:16px}
 .opt:hover{border-color:var(--accent)}
 .opt input{margin-top:3px}
 .opt.sel{border-color:var(--accent);background:var(--soft)}
+.opt small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
+.clr{background:none;border:none;color:var(--accent);padding:2px 0;font-size:13px;text-decoration:underline;margin-top:6px}
 .dimhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
 .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
@@ -66,13 +68,20 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-
 .stg.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent);width:0}
-table.v{width:100%;border-collapse:collapse;font-size:14px}
+table.v{width:100%;min-width:900px;border-collapse:collapse;font-size:14px;table-layout:fixed}
 table.v th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:4px 6px}
-table.v td{padding:4px 4px;vertical-align:top}
-table.v td:first-child{width:28px;color:var(--muted);padding-top:12px}
+table.v td{padding:4px;vertical-align:top}
+table.v th:nth-child(1),table.v td:first-child{width:30px;color:var(--muted)}
+table.v td:first-child{padding-top:12px}
+table.v th:nth-child(2){width:13%}
+table.v th:nth-child(3){width:14%}
+table.v th:nth-child(4){width:14%}
+table.v th:nth-child(5){width:15%}
+table.v th:nth-child(6){width:14%}
+table.v th:nth-child(7){width:15%}
+table.v th:nth-child(8){width:15%}
 .vscroll{overflow-x:auto}
-table.v input,table.v select{min-width:110px}
-table.v input.dom{min-width:150px}
+table.v input,table.v select{min-width:0;width:100%;padding:8px 6px;text-overflow:ellipsis}
 .bad{border-color:var(--warn)!important}
 pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow:auto;font-size:13px;white-space:pre-wrap;word-break:break-word;margin:6px 0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
@@ -120,7 +129,8 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
         <li><b>Critical vendors (about 15 minutes).</b> Capture the ten vendors that matter most. We only need domains to run the report, but the extra context makes the recommendations sharper.</li>
         <li><b>Output.</b> A <code>vendors.txt</code>, the maturity stage and a ready-to-run command.</li>
       </ol>
-      <div class="tip"><b>Tip.</b> Do not read the answer options out loud. Ask the question, listen, then tick. If the answer sits between two options, pick the lower one and add a note.</div>
+      <div class="tip"><b>Tip.</b> Do not read the answer options out loud. Ask the question, listen, then tick. Ask for a best estimate when a percentage is requested. If the answer sits between two options, pick the lower one and add a note.</div>
+      <div class="tip"><b>Do not know.</b> If the prospect cannot answer, tick "Don't know". It is left out of the score and listed as a discovery gap in the notes, which is often a finding in itself.</div>
       <div class="tip"><b>Privacy.</b> Everything stays in your browser. Nothing is sent anywhere. Answers are saved locally so a refresh will not lose them. Use Reset between prospects.</div>
       <div class="row"><button class="primary" data-go="maturity" type="button">Start with maturity</button></div>
     </div>
@@ -243,78 +253,83 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
     { key: "threat", name: "Threat-Informed TPRM", note: "Proactive remediation driven by threat intelligence and board-level risk reporting." }
   ];
 
-  // s is the stage index the answer points to (0 to 3). Half values mean the answer fits two adjacent stages.
+  // s is the stage index the answer points to (0 to 3). Half values sit between two adjacent stages.
+  // h is a plain-language hint shown under the option. Bands do not overlap and have no gaps.
+  var UNKNOWN = { t: "Don't know, or would not say", h: "Not scored. Recorded as a discovery gap in the notes.", s: null };
   var DIMS = [
     { id: "model", name: "Operating model",
       ask: "Walk me through what happens when someone wants to onboard a new vendor, from request to decision. What tools are involved?",
-      listen: "Spreadsheets and email, a point tool, a platform, how much is automated.",
+      listen: "Spreadsheets and email, a point tool, a platform, and how many steps people still do by hand.",
       opts: [
-        { t: "Manual: spreadsheets and email", s: 0 },
-        { t: "Some tools, limited automation", s: 1 },
-        { t: "Platform driven, partial automation", s: 2 },
-        { t: "Intelligence driven, fully automated", s: 3 }] },
+        { t: "Manual", h: "Spreadsheets and email threads.", s: 0 },
+        { t: "Some tools, limited automation", h: "A questionnaire or ratings tool, but people still chase most steps.", s: 1 },
+        { t: "Platform driven, partial automation", h: "One platform runs intake, assessment and monitoring, with manual steps remaining.", s: 2 },
+        { t: "Fully automated, intelligence driven", h: "Workflows trigger automatically from alerts and threat intelligence.", s: 3 }] },
     { id: "monitored", name: "Vendors monitored",
-      ask: "Between reviews, what share of your vendors do you actively monitor for security changes?",
-      listen: "Whether monitoring exists at all, and whether it is a posture view or a threat view.",
+      ask: "Between reviews, roughly what percentage of your vendors do you actively monitor for security changes?",
+      listen: "Whether any monitoring exists, and whether it only tracks security ratings or also watches for threats and incidents.",
       opts: [
-        { t: "None (0%)", s: 0 },
-        { t: "A few (0 to 10%)", s: 1 },
-        { t: "Most (10 to 80%), security posture view", s: 2 },
-        { t: "Nearly all (80 to 100%), threat view", s: 3 }] },
+        { t: "None (0%)", h: "Vendors are only looked at during reviews.", s: 0 },
+        { t: "Under 10%", h: "A handful of vendors, usually the largest.", s: 1 },
+        { t: "10 to 79%", h: "Ratings or posture monitoring across a good share of vendors.", s: 2 },
+        { t: "80% or more", h: "Near full coverage, including threat and incident monitoring.", s: 3 }] },
     { id: "issues", name: "Critical issues resolved",
-      ask: "When a critical issue is found in a vendor, how many get resolved, and how does that follow-up happen?",
-      listen: "Percent closed, who chases, whether it is reactive or proactive.",
+      ask: "Of the critical security issues found in vendors, roughly what percentage actually get resolved?",
+      listen: "The percentage first, then how it happens: ad hoc follow-up, reactive tickets, or a proactive process.",
       opts: [
-        { t: "Under 40%, ad hoc", s: 0.5 },
-        { t: "40 to 70%, reactively", s: 2 },
-        { t: "Over 95%, proactively", s: 3 }] },
+        { t: "Under 40%", h: "Ad hoc. Someone emails the vendor and it often stalls.", s: 0.5 },
+        { t: "40 to 69%", h: "Mostly reactive, resolved when an incident or audit forces it.", s: 2 },
+        { t: "70 to 95%", h: "A defined process closes most issues.", s: 2.5 },
+        { t: "Over 95%", h: "Proactive, with issues driven to closure and verified.", s: 3 }] },
     { id: "time", name: "Resolution time",
       ask: "From the day a critical issue is found, how long does it usually take to get it fixed?",
-      listen: "Days, and whether they can prove the fix.",
+      listen: "Typical days, and whether the fix is verified or taken on trust.",
       opts: [
-        { t: "More than 90 to 120 days", s: 0.5 },
-        { t: "30 to 60 days", s: 2 },
-        { t: "Under 30 days", s: 3 }] },
+        { t: "Over 90 days", h: "Often unresolved for months.", s: 0.5 },
+        { t: "60 to 90 days", h: "", s: 1.5 },
+        { t: "30 to 59 days", h: "", s: 2 },
+        { t: "Under 30 days", h: "", s: 3 }] },
     { id: "reporting", name: "Reporting",
       ask: "What do you report to leadership or the board about vendor risk today?",
-      listen: "Activity counts, compliance status, posture trends, or quantified risk exposure.",
+      listen: "Whether reports describe activity, compliance, security posture, or the likely financial exposure.",
       opts: [
-        { t: "Activity and status (reviews done, open items)", s: 0 },
-        { t: "Compliance performance", s: 1 },
-        { t: "Security posture performance", s: 2 },
-        { t: "Quantified risk exposure", s: 3 }] },
+        { t: "Activity and status", h: "Reviews completed, items open.", s: 0 },
+        { t: "Compliance performance", h: "Who passed or failed requirements.", s: 1 },
+        { t: "Security posture performance", h: "Trends in vendor security ratings and issues.", s: 2 },
+        { t: "Quantified risk exposure", h: "Risk expressed in business or financial terms.", s: 3 }] },
     { id: "inventory", name: "Third-party inventory identified",
-      ask: "How confident are you that you know every third party that touches your data or operations?",
-      listen: "Estimated percent identified, and whether fourth parties are visible.",
+      ask: "How confident are you that you know every third party that touches your data or operations? What percentage would you say is captured?",
+      listen: "Their estimate, where the inventory lives, and whether fourth parties are visible.",
       opts: [
-        { t: "Under 50%", s: 0 },
-        { t: "About 60% or more", s: 1 },
-        { t: "About 80%", s: 2 },
-        { t: "About 95%", s: 3 }] },
+        { t: "Under 50%", h: "No reliable list.", s: 0 },
+        { t: "50 to 79%", h: "A list exists but is known to be incomplete.", s: 1 },
+        { t: "80 to 94%", h: "Mostly complete, with some shadow vendors.", s: 2 },
+        { t: "95% or more", h: "Near complete, kept current.", s: 3 }] },
     { id: "tiering", name: "Tiering",
       ask: "How do you decide which vendors get a deeper review than others?",
-      listen: "Whether tiering exists, is consistent, is built into onboarding, and updates dynamically.",
+      listen: "Whether tiers exist, are applied consistently, are part of onboarding, and change when risk changes.",
       opts: [
-        { t: "No vendors are tiered", s: 0 },
-        { t: "Inconsistent (under 50% tiered)", s: 1 },
-        { t: "Embedded in onboarding (100% tiered)", s: 2 },
-        { t: "Dynamic and intelligence-led (100% tiered)", s: 3 }] },
+        { t: "No vendors are tiered", h: "Every vendor is treated the same.", s: 0 },
+        { t: "Inconsistent (under 50% tiered)", h: "Tiers exist but are applied unevenly.", s: 1 },
+        { t: "Built into onboarding (100% tiered)", h: "Every new vendor is tiered when onboarded.", s: 2 },
+        { t: "Dynamic and intelligence led (100% tiered)", h: "Tiers update automatically as the vendor's risk changes.", s: 3 }] },
     { id: "turnaround", name: "Assessment turnaround",
-      ask: "How long does a typical vendor assessment take from sending the questionnaire to a decision?",
+      ask: "How long does a typical vendor assessment take, from sending the questionnaire to a decision?",
       listen: "Days from send to close, and how often vendors respond late.",
       opts: [
-        { t: "More than 60 to 90 days", s: 0 },
-        { t: "30 to 60 days", s: 1 },
-        { t: "10 to 30 days", s: 2.5 }] },
+        { t: "Over 60 days", h: "", s: 0 },
+        { t: "30 to 60 days", h: "", s: 1 },
+        { t: "Under 30 days", h: "Fits both Continuous and Threat-Informed, so it is scored between them.", s: 2.5 }] },
     { id: "coverage", name: "Assessment coverage",
-      ask: "What share of your vendors has had a full assessment in the last 12 months?",
-      listen: "Percent assessed, and how the rest are handled.",
+      ask: "Of all your vendors, roughly what percentage have been fully assessed, and how current are those assessments?",
+      listen: "The percentage, and whether assessments are recent or stale.",
       opts: [
-        { t: "Under 10%", s: 0 },
-        { t: "10 to 50%", s: 1 },
-        { t: "50 to 80%", s: 2 },
-        { t: "80 to 95%", s: 3 }] }
+        { t: "Under 10%", h: "", s: 0 },
+        { t: "10 to 49%", h: "", s: 1 },
+        { t: "50 to 79%", h: "", s: 2 },
+        { t: "80% or more", h: "", s: 3 }] }
   ];
+  DIMS.forEach(function (d) { d.opts.push(UNKNOWN); });
 
   var CTX = [
     { id: "trigger", ask: "What prompted this conversation now?", listen: "A recent incident, audit finding, regulator request, new leadership, or a renewal.", placeholder: "Trigger and urgency" },
@@ -378,15 +393,19 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
   }
 
   /* ---------- maturity ---------- */
+  function answered(d) { var a = S.ans[d.id]; return a !== undefined && a !== "" && !!d.opts[a]; }
   function calc() {
-    var sum = 0, n = 0;
+    var sum = 0, n = 0, u = 0;
     DIMS.forEach(function (d) {
-      var a = S.ans[d.id];
-      if (a !== undefined && a !== "" && d.opts[a]) { sum += d.opts[a].s; n++; }
+      if (!answered(d)) return;
+      var o = d.opts[S.ans[d.id]];
+      if (o.s === null) { u++; return; }
+      sum += o.s; n++;
     });
     var avg = n ? sum / n : null;
-    var idx = avg === null ? null : Math.min(3, Math.max(0, Math.round(avg)));
-    return { n: n, avg: avg, idx: idx };
+    // A tie between two stages rounds down, so the result is never flattering.
+    var idx = avg === null ? null : Math.min(3, Math.max(0, Math.ceil(avg - 0.5)));
+    return { n: n, u: u, avg: avg, idx: idx };
   }
   function finalIdx() {
     if (S.override !== "") return Number(S.override);
@@ -396,14 +415,14 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
   function renderDims() {
     var h = "";
     DIMS.forEach(function (d, di) {
-      h += '<div class="card"><div class="dimhead"><h3>' + (di + 1) + ". " + esc(d.name) + '</h3><span class="pill" id="pill-' + d.id + '">' +
-        (S.ans[d.id] !== undefined && S.ans[d.id] !== "" ? "answered" : "open") + '</span></div>' +
+      h += '<div class="card"><div class="dimhead"><h3>' + (di + 1) + ". " + esc(d.name) + '</h3><span class="pill" id="pill-' + d.id + '">' + pillText(d) + '</span></div>' +
         '<p class="ask">' + esc(d.ask) + '</p><p class="listen">Listen for: ' + esc(d.listen) + '</p><div class="opts">';
       d.opts.forEach(function (o, oi) {
         var sel = String(S.ans[d.id]) === String(oi);
-        h += '<label class="opt' + (sel ? " sel" : "") + '"><input type="radio" name="d-' + d.id + '" value="' + oi + '"' + (sel ? " checked" : "") + "><span>" + esc(o.t) + "</span></label>";
+        h += '<label class="opt' + (sel ? " sel" : "") + '"><input type="radio" name="d-' + d.id + '" value="' + oi + '"' + (sel ? " checked" : "") + "><span>" + esc(o.t) +
+          (o.h ? "<small>" + esc(o.h) + "</small>" : "") + "</span></label>";
       });
-      h += "</div></div>";
+      h += '</div><button class="clr" type="button" data-clear="' + d.id + '">Clear answer</button></div>';
     });
     $("dims").innerHTML = h;
     $("dims").querySelectorAll("input[type=radio]").forEach(function (r) {
@@ -412,16 +431,28 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
         S.ans[id] = r.value; save();
         r.closest(".opts").querySelectorAll(".opt").forEach(function (l) { l.classList.remove("sel"); });
         r.closest(".opt").classList.add("sel");
-        $("pill-" + id).textContent = "answered";
+        $("pill-" + id).textContent = pillText(dimById(id));
+        updateResult();
+      });
+    });
+    $("dims").querySelectorAll("[data-clear]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.dataset.clear;
+        delete S.ans[id]; save();
+        b.parentNode.querySelectorAll("input[type=radio]").forEach(function (r) { r.checked = false; });
+        b.parentNode.querySelectorAll(".opt").forEach(function (l) { l.classList.remove("sel"); });
+        $("pill-" + id).textContent = "open";
         updateResult();
       });
     });
   }
+  function dimById(id) { return DIMS.filter(function (d) { return d.id === id; })[0]; }
+  function pillText(d) { return !answered(d) ? "open" : (d.opts[S.ans[d.id]].s === null ? "unknown" : "answered"); }
 
   function updateResult() {
     var c = calc();
-    $("progLabel").textContent = c.n + " of " + DIMS.length + " answered";
-    $("progBar").style.width = Math.round(c.n / DIMS.length * 100) + "%";
+    $("progLabel").textContent = (c.n + c.u) + " of " + DIMS.length + " answered" + (c.u ? " (" + c.u + " unknown, not scored)" : "");
+    $("progBar").style.width = Math.round((c.n + c.u) / DIMS.length * 100) + "%";
     var fi = finalIdx();
     $("stageStrip").innerHTML = STAGES.map(function (s, k) {
       return '<div class="stg' + (fi === k ? " on" : "") + '"><b>' + esc(s.name) + "</b></div>";
@@ -429,7 +460,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
     var txt;
     if (fi === null) txt = "Answer at least one question to see a stage.";
     else {
-      txt = (S.override !== "" ? "Set manually: " : "Calculated from " + c.n + " answers (average " + c.avg.toFixed(1) + " on a 0 to 3 scale): ") + STAGES[fi].name + ". " + STAGES[fi].note;
+      txt = (S.override !== "" ? "Set manually: " : "Calculated from " + c.n + " scored answers (average " + c.avg.toFixed(1) + " on a 0 to 3 scale, ties round down): ") + STAGES[fi].name + ". " + STAGES[fi].note;
       if (S.override === "" && c.n < 5) txt += " Fewer than five answers so far, so treat this as provisional.";
     }
     $("stageText").textContent = txt;
@@ -530,7 +561,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 
     $("sum").innerHTML =
       "<p><b>Prospect:</b> " + esc(name || "not set") + (dom ? " (" + esc(dom) + ")" : "") + "</p>" +
-      "<p><b>Maturity stage:</b> " + esc(st ? st.name : "not set") + (st && S.override === "" ? " (calculated from " + c.n + " of " + DIMS.length + " answers)" : st ? " (set manually)" : "") + "</p>" +
+      "<p><b>Maturity stage:</b> " + esc(st ? st.name : "not set") + (st && S.override === "" ? " (calculated from " + c.n + " of " + DIMS.length + " scored answers" + (c.u ? ", " + c.u + " unknown" : "") + ")" : st ? " (set manually)" : "") + "</p>" +
       "<p><b>Vendors captured:</b> " + doms.length + " of 10</p>" +
       (warn.length ? '<p class="warn">Still missing: ' + esc(warn.join(", ")) + ".</p>" : '<p class="ok">Everything needed to run the report is captured.</p>');
 
@@ -554,12 +585,14 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
     ["industry", "country", "contact", "sponsor"].forEach(function (k) {
       if (S.f[k] && S.f[k].trim()) L.push({ industry: "Industry", country: "Markets", contact: "Contact", sponsor: "Sponsor" }[k] + ": " + S.f[k].trim());
     });
-    L.push("", "MATURITY: " + (st ? st.name : "not set") + (c.avg !== null ? " (average " + c.avg.toFixed(1) + " of 3, " + c.n + " answers)" : ""));
+    L.push("", "MATURITY: " + (st ? st.name : "not set") + (c.avg !== null ? " (average " + c.avg.toFixed(1) + " of 3, " + c.n + " scored answers" + (c.u ? ", " + c.u + " unknown" : "") + ")" : ""));
     if (note) L.push("Observation: " + note);
     DIMS.forEach(function (d) {
       var a = S.ans[d.id];
-      L.push("- " + d.name + ": " + (a !== undefined && a !== "" && d.opts[a] ? d.opts[a].t : "not answered"));
+      L.push("- " + d.name + ": " + (answered(d) ? d.opts[a].t : "not answered"));
     });
+    var unk = DIMS.filter(function (d) { return answered(d) && d.opts[S.ans[d.id]].s === null; }).map(function (d) { return d.name; });
+    if (unk.length) L.push("Discovery gaps (prospect did not know): " + unk.join(", "));
     L.push("", "CONTEXT");
     CTX.forEach(function (x) { L.push("- " + x.ask + " " + ((S.ctx[x.id] || "").trim() || "-")); });
     L.push("", "CRITICAL VENDORS");
