@@ -88,10 +88,43 @@ pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:
 .stat{font-weight:600}
 .ok{color:var(--ok)}.warn{color:var(--warn)}
 footer{color:var(--muted);font-size:13px;margin-top:20px}
+@page{size:A4;margin:12mm}
 @media print{
-  body{background:#fff;color:#000;font-size:12px}
+  body{background:#fff;color:#000;font-size:11px;line-height:1.35}
+  .sub,.row,footer{display:none!important}
+  h1{font-size:20px;margin-bottom:8px}
+  .card{padding:8px 10px;margin-bottom:8px}
+  .card h2{font-size:15px}.card h3{font-size:13px}
+  .ask{font-size:12.5px!important;margin:2px 0 4px!important}
+  .opts{gap:3px}
+  .opt{padding:3px 8px}
+  .opt small{font-size:10.5px}
+  section#p-prospect,section#p-vendors{break-before:page}
+  input::placeholder,textarea::placeholder{color:transparent!important}
+  input.pe,textarea.pe,select.pe{color:transparent!important}
+  input[type=date].pe::-webkit-datetime-edit{color:transparent}
+  textarea{min-height:34px;border:none;border-bottom:1px solid #ccc;border-radius:0;background:none;padding:2px 0}
+  .q{margin-bottom:6px}
   nav.tabs,.tools,button,.noprint{display:none!important}
   section.panel{display:block!important;break-inside:auto}
+  section#p-output,section#p-intro{display:none!important}
+  .listen,.tip,.clr,.pill,.stg:not(.on){display:none!important}
+  select{border:none;background:none;padding:0;-webkit-appearance:none;appearance:none}
+  .opt{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .opt.sel{border:2px solid #000;font-weight:600;background:#eee!important}
+  .stg.on{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .vscroll{overflow:visible}
+  table.v{min-width:0;width:100%;table-layout:auto;display:block}
+  table.v thead{display:none}
+  table.v tbody{display:block}
+  table.v tr{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;border:1px solid #bbb;border-radius:6px;padding:8px;margin-bottom:8px;break-inside:avoid}
+  table.v td{display:block;padding:0;width:auto!important}
+  table.v td:first-child{grid-column:1/-1;font-weight:700;color:#000;padding:0 0 2px}
+  table.v td:first-child::before{content:"Vendor "}
+  table.v td[data-label]:not(:first-child)::before{content:attr(data-label);display:block;font-size:10px;color:#555;margin-bottom:1px}
+  table.v input,table.v select{border:none;border-bottom:1px solid #ccc;border-radius:0;background:none;padding:2px 0;width:100%;font-size:12px;min-height:16px}
+  table.v input::placeholder{color:transparent}
+  #vCount,#vMsg{display:none}
   .card{break-inside:avoid;border-color:#bbb}
   .wrap{padding:0}
 }
@@ -144,12 +177,12 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
       <div class="bar" aria-hidden="true"><i id="progBar"></i></div>
     </div>
     <div id="dims"></div>
-    <div class="card">
+    <div class="card" id="resultCard">
       <h2>Result</h2>
       <div id="stageStrip" class="stage"></div>
       <p id="stageText" class="muted"></p>
       <div class="grid">
-        <div>
+        <div class="noprint">
           <label class="f" for="override">Override the calculated stage (optional)</label>
           <select id="override"></select>
         </div>
@@ -255,7 +288,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 
   // s is the stage index the answer points to (0 to 3). Half values sit between two adjacent stages.
   // h is a plain-language hint shown under the option. Bands do not overlap and have no gaps.
-  var UNKNOWN = { t: "Don't know, or would not say", h: "Not scored. Recorded as a discovery gap in the notes.", s: null };
+  var UNKNOWN = { t: "Don't know, or would not say", h: "Not scored. Recorded as a discovery gap in the notes.", np: 1, s: null };
   var DIMS = [
     { id: "model", name: "Operating model",
       ask: "Walk me through what happens when someone wants to onboard a new vendor, from request to decision. What tools are involved?",
@@ -319,7 +352,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
       opts: [
         { t: "Over 60 days", h: "", s: 0 },
         { t: "30 to 60 days", h: "", s: 1 },
-        { t: "Under 30 days", h: "Fits both Continuous and Threat-Informed, so it is scored between them.", s: 2.5 }] },
+        { t: "Under 30 days", h: "Fits both Continuous and Threat-Informed, so it is scored between them.", np: 1, s: 2.5 }] },
     { id: "coverage", name: "Assessment coverage",
       ask: "Of all your vendors, roughly what percentage have been fully assessed, and how current are those assessments?",
       listen: "The percentage, and whether assessments are recent or stale.",
@@ -420,7 +453,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
       d.opts.forEach(function (o, oi) {
         var sel = String(S.ans[d.id]) === String(oi);
         h += '<label class="opt' + (sel ? " sel" : "") + '"><input type="radio" name="d-' + d.id + '" value="' + oi + '"' + (sel ? " checked" : "") + "><span>" + esc(o.t) +
-          (o.h ? "<small>" + esc(o.h) + "</small>" : "") + "</span></label>";
+          (o.h ? "<small" + (o.np ? ' class="noprint"' : "") + ">" + esc(o.h) + "</small>" : "") + "</span></label>";
       });
       h += '</div><button class="clr" type="button" data-clear="' + d.id + '">Clear answer</button></div>';
     });
@@ -457,13 +490,17 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
     $("stageStrip").innerHTML = STAGES.map(function (s, k) {
       return '<div class="stg' + (fi === k ? " on" : "") + '"><b>' + esc(s.name) + "</b></div>";
     }).join("");
-    var txt;
-    if (fi === null) txt = "Answer at least one question to see a stage.";
-    else {
-      txt = (S.override !== "" ? "Set manually: " : "Calculated from " + c.n + " scored answers (average " + c.avg.toFixed(1) + " on a 0 to 3 scale, ties round down): ") + STAGES[fi].name + ". " + STAGES[fi].note;
-      if (S.override === "" && c.n < 5) txt += " Fewer than five answers so far, so treat this as provisional.";
+    var card = $("resultCard");
+    if (fi === null) {
+      card.classList.add("noprint");
+      $("stageText").textContent = "Answer at least one question to see a stage.";
+    } else {
+      card.classList.remove("noprint");
+      var how = (S.override !== "" ? "Set manually. " : "Calculated from " + c.n + " scored answers (average " + c.avg.toFixed(1) + " on a 0 to 3 scale, ties round down). ");
+      var warn = (S.override === "" && c.n < 5) ? " Fewer than five answers so far, so treat this as provisional." : "";
+      $("stageText").innerHTML = '<b>' + esc(STAGES[fi].name) + ".</b> " + esc(STAGES[fi].note) +
+        '<span class="noprint"><br>' + esc(how + warn) + "</span>";
     }
-    $("stageText").textContent = txt;
   }
 
   function initOverride() {
@@ -499,14 +536,14 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
   function renderVendors() {
     var h = "";
     S.vendors.forEach(function (v, k) {
-      h += "<tr><td>" + (k + 1) + "</td>" +
-        '<td><input type="text" data-k="' + k + '" data-f="n" value="' + esc(v.n) + '" placeholder="Vendor name"></td>' +
-        '<td><input class="dom" type="text" data-k="' + k + '" data-f="d" value="' + esc(v.d) + '" placeholder="vendor.com" autocapitalize="off" spellcheck="false"></td>' +
-        '<td><input type="text" data-k="' + k + '" data-f="svc" value="' + esc(v.svc) + '" placeholder="e.g. payroll"></td>' +
-        '<td><select data-k="' + k + '" data-f="acc">' + opts(ACCESS, v.acc) + "</select></td>" +
-        '<td><select data-k="' + k + '" data-f="crit">' + opts(CRIT, v.crit) + "</select></td>" +
-        '<td><input type="date" data-k="' + k + '" data-f="last" value="' + esc(v.last) + '"></td>' +
-        '<td><input type="text" data-k="' + k + '" data-f="own" value="' + esc(v.own) + '" placeholder="Internal owner"></td></tr>';
+      h += "<tr><td data-label=\"No.\">" + (k + 1) + "</td>" +
+        '<td data-label="Vendor name"><input type="text" data-k="' + k + '" data-f="n" value="' + esc(v.n) + '" placeholder="Vendor name"></td>' +
+        '<td data-label="Domain"><input class="dom" type="text" data-k="' + k + '" data-f="d" value="' + esc(v.d) + '" placeholder="vendor.com" autocapitalize="off" spellcheck="false"></td>' +
+        '<td data-label="Service provided"><input type="text" data-k="' + k + '" data-f="svc" value="' + esc(v.svc) + '" placeholder="e.g. payroll"></td>' +
+        '<td data-label="Data or access"><select data-k="' + k + '" data-f="acc">' + opts(ACCESS, v.acc) + "</select></td>" +
+        '<td data-label="Criticality"><select data-k="' + k + '" data-f="crit">' + opts(CRIT, v.crit) + "</select></td>" +
+        '<td data-label="Last assessed"><input type="date" data-k="' + k + '" data-f="last" value="' + esc(v.last) + '"></td>' +
+        '<td data-label="Owner"><input type="text" data-k="' + k + '" data-f="own" value="' + esc(v.own) + '" placeholder="Internal owner"></td></tr>';
     });
     $("vbody").innerHTML = h;
     $("vbody").querySelectorAll("input,select").forEach(function (el) {
@@ -618,7 +655,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
     document.querySelectorAll("nav.tabs button").forEach(function (b) { b.addEventListener("click", function () { go(b.dataset.tab); }); });
     document.querySelectorAll("[data-go]").forEach(function (b) { b.addEventListener("click", function () { go(b.dataset.go); }); });
     $("btnPrint").addEventListener("click", function () {
-      var prev = S.tab; buildOutput(); window.print(); if (prev) go(prev);
+      window.print();
     });
     $("btnReset").addEventListener("click", function () {
       if (!confirm("Clear all answers on this device?")) return;
@@ -629,6 +666,12 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
       var r = document.documentElement, dark = r.getAttribute("data-theme") === "dark" ||
         (!r.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
       r.setAttribute("data-theme", dark ? "light" : "dark");
+    });
+    window.addEventListener("beforeprint", function () {
+      document.querySelectorAll("input[type=text],input[type=date],textarea,select").forEach(function (el) { if (!el.value) el.classList.add("pe"); });
+    });
+    window.addEventListener("afterprint", function () {
+      document.querySelectorAll(".pe").forEach(function (el) { el.classList.remove("pe"); });
     });
     $("cpVendors").addEventListener("click", function (e) { copy($("outVendors").textContent, e.target); });
     $("cpCmd").addEventListener("click", function (e) { copy($("outCmd").textContent, e.target); });
